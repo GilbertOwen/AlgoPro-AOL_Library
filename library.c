@@ -13,12 +13,19 @@
 #define SLEEP(ms) usleep((ms) * 1000)
 #endif
 
+/*
+    TODO :
+    - Need to add sorting function to sort books by title, author, and borrowed status
+    - Need to add searching function to search for books by title, author, and borrowed status
+*/
+
 typedef struct
 {
     char id[7];
     char title[100];
     char author[100];
     int isBorrowed;
+    char borrowedBy[30];
     char description[100];
 } Book;
 
@@ -27,7 +34,6 @@ typedef struct
     char username[30];
     char password[30];
     int isAdmin;
-    Book *books[3];
 } User;
 
 User *users[100] = {NULL};
@@ -49,31 +55,77 @@ void CLEAR_SCREEN()
 {
     printf("%s", CLEAR_REGEX);
 }
+
+void header()
+{
+    CLEAR_SCREEN();
+    show_logo();
+}
+
 void loadingAnimation()
 {
     printf("Loading...\n");
     SLEEP(1000);
 };
 
-void getUsers(FILE *fp);
+FILE *openFile(const char *filename, const char *mode)
+{
+    FILE *file = fopen(filename, mode);
+    if (file == NULL)
+    {
+        FILE *tempFile = fopen(filename, "wb");
+        if (tempFile != NULL)
+        {
+            fclose(tempFile);
+        }
+        file = fopen(filename, mode);
+    }
+    return file;
+}
+
 void showUsers(FILE *fp);
+void getUsers(FILE *fp);
+int login(User *user, FILE *fp);
 void printUserInformation(User *user);
-void login(User *user, FILE *fp);
-void registerUser(User *user, FILE *fp);
+int registerUser(User *user, FILE *fp);
 int authentication(User *user, FILE *fp);
-void getBooks(FILE *fp);
+void resetFile(const char *filename);
 void showBooks(FILE *fp);
+void showBooksPage(FILE *fp);
+void getBooks(FILE *fp);
+void createIdBook(FILE *fp, char *id);
 void createBookHeader();
 void createBook(FILE *fp);
+void deleteBookHeader();
 void deleteBook(FILE *fp);
+void editBookHeader();
 void editBook(FILE *fp);
-void borrowBook(FILE *fpUser, FILE *fpBook, User *user);
-void returnBook(FILE *fpUser, FILE *fpBook);
-void runLibrary();
+void userHeader();
+void showAvailBooks(FILE *fpBook);
+void showBorrowedBooks(User *user);
+void borrowBook(FILE *fpBook, User *user);
+void returnBook(FILE *fpBook, User *user);
+void runLibrary(FILE *fp, FILE *fpBook, User *user);
 
 int main()
 {
-    runLibrary();
+    FILE *fp = openFile("user.dat", "ab+");
+    FILE *fpBook = openFile("book.dat", "ab+");
+    User *user = (User *)malloc(sizeof(User));
+    int menu = 0;
+    do
+    {
+        menu = authentication(user, fp);
+        if (menu == 0)
+        {
+            continue;
+        }
+        runLibrary(fp, fpBook, user);
+    } while (menu != 3);
+
+    fclose(fp);
+    fclose(fpBook);
+    free(user);
     return 0;
 }
 
@@ -95,11 +147,12 @@ void showUsers(FILE *fp)
 
 void getUsers(FILE *fp)
 {
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 100 && users[i] != NULL; i++)
     {
         if (users[i] != NULL)
         {
             free(users[i]);
+            users[i] = NULL;
         }
         else
         {
@@ -111,14 +164,14 @@ void getUsers(FILE *fp)
     int count = 0;
     while (fread(user, sizeof(User), 1, fp) == 1)
     {
-        users[count] = (User *)malloc(sizeof(User)); // Allocate memory for each user
+        users[count] = (User *)malloc(sizeof(User));
         memcpy(users[count], user, sizeof(User));
         count++;
     }
     free(user);
 }
 
-void login(User *user, FILE *fp)
+int login(User *user, FILE *fp)
 {
     char username[30], password[30];
     int authenticated = 0;
@@ -132,12 +185,16 @@ void login(User *user, FILE *fp)
         {
             printf("Please input the right username and password\n\n");
         }
-        printf("Username : ");
+        printf("Username (0 to cancel): ");
         scanf("%[^\n]", username);
         getchar();
-        printf("Password : ");
+        printf("Password (0 to cancel): ");
         scanf("%[^\n]", password);
         getchar();
+        if (strcmp(username, "0") == 0 || strcmp(password, "0") == 0)
+        {
+            return 0;
+        }
         if (strcmp(username, "admin") == 0 && strcmp(password, "admin123") == 0)
         {
             authenticated = 1;
@@ -156,6 +213,7 @@ void login(User *user, FILE *fp)
             }
         }
     } while (authenticated == 0);
+    return 1;
 }
 
 void printUserInformation(User *user)
@@ -165,7 +223,7 @@ void printUserInformation(User *user)
     printf("Role : %s\n", user->isAdmin == 1 ? "Admin" : "User");
 }
 
-void registerUser(User *user, FILE *fp)
+int registerUser(User *user, FILE *fp)
 {
     int validated = 0;
     char temp[30];
@@ -194,9 +252,13 @@ void registerUser(User *user, FILE *fp)
                 printf("Username cannot be admin\n");
                 usernameContainsAdmin = 0;
             }
-            printf("username : ");
+            printf("Username (0 to cancel): ");
             scanf("%[^\n]", temp);
             getchar();
+            if (strcmp(temp, "0") == 0)
+            {
+                return 0;
+            }
             if (strlen(temp) < 5 || strlen(temp) > 20)
             {
                 validated = 0;
@@ -245,9 +307,13 @@ void registerUser(User *user, FILE *fp)
             validated = 1;
             printf("Register User\n");
             printf("Password must be 8-20 characters long\n");
-            printf("Insert password : ");
+            printf("Insert password (0 to cancel): ");
             scanf("%[^\n]", temp);
             getchar();
+            if (strcmp(temp, "0") == 0)
+            {
+                return 0;
+            }
             if (strlen(temp) < 8 || strlen(temp) > 20)
             {
                 validated = 0;
@@ -262,13 +328,14 @@ void registerUser(User *user, FILE *fp)
         } while (validated == 0);
     } while (validated == 0);
 
-    for (int i = 0; i < 3; i++)
-    {
-        user->books[i] = NULL;
-    }
-
     fwrite(user, sizeof(User), 1, fp);
     fflush(fp);
+
+    int i;
+    for (i = 0; i < 100 && users[i] != NULL; i++)
+        ;
+    users[i] = (User *)malloc(sizeof(User));
+    memcpy(users[i], user, sizeof(User));
     loadingAnimation();
     printf("Successfully added new user to the system\n");
     printf("username : %s\n", user->username);
@@ -282,27 +349,31 @@ int authentication(User *user, FILE *fp)
     int menu = 0;
     do
     {
-        CLEAR_SCREEN();
-        show_logo();
+        header();
         printf("1. Login\n2. Register\n3. Exit\n");
         scanf("%d", &menu);
         getchar();
         if (menu == 1)
         {
-            login(user, fp);
+            int authenticated = login(user, fp);
+            if (authenticated == 0)
+            {
+                continue;
+            }
             break;
         }
         else if (menu == 2)
         {
-            registerUser(user, fp);
+
+            int authenticated = registerUser(user, fp);
+            if (authenticated == 0)
+            {
+                continue;
+            }
             break;
         }
     } while (menu != 3);
-    if (menu == 3)
-    {
-        return 1;
-    }
-    return 0;
+    return menu;
 }
 
 // Admin section
@@ -317,18 +388,22 @@ void resetFile(const char *filename)
     }
     fclose(fp);
 }
-
 void showBooks(FILE *fp)
 {
-    CLEAR_SCREEN();
-    show_logo();
-    loadingAnimation();
     printf("Books\n");
     getBooks(fp);
     for (int i = 0; i < 100 && books[i] != NULL; i++)
     {
         printf("%d.\nId : %s\nTitle : %s\nAuthor : %s\nDescription : %s\nIs Borrowed : %d\n\n", i + 1, books[i]->id, books[i]->title, books[i]->author, books[i]->description, books[i]->isBorrowed);
     }
+    printf("\n--------------------------------------------------------------------------------\n\n");
+};
+
+void showBooksPage(FILE *fp)
+{
+    header();
+    loadingAnimation();
+    showBooks(fp);
     printf("Press enter to continue\n");
     getchar();
 }
@@ -405,9 +480,8 @@ void createIdBook(FILE *fp, char *id)
 
 void createBookHeader()
 {
-    CLEAR_SCREEN();
-    show_logo();
-    printf("Create Book\n");
+    header();
+    printf("Library - Create Book\n");
 }
 
 void createBook(FILE *fp)
@@ -497,6 +571,7 @@ void createBook(FILE *fp)
     fflush(fp);
     createBookHeader();
     loadingAnimation();
+
     printf("Successfully added new book to the system\n");
     printf("Id : %s\nTitle : %s\nAuthor : %s\nDescription : %s\n\n",
            book->id, book->title, book->author, book->description);
@@ -508,9 +583,8 @@ void createBook(FILE *fp)
 
 void deleteBookHeader()
 {
-    CLEAR_SCREEN();
-    show_logo();
-    printf("Delete Book\n");
+    header();
+    printf("Library - Delete Book\n");
 }
 
 void deleteBook(FILE *fp)
@@ -521,6 +595,7 @@ void deleteBook(FILE *fp)
     {
         deleteBookHeader();
         getBooks(fp);
+        showBooks(fp);
         printf("Insert book id (Enter 0 to cancel): ");
         scanf("%[^\n]", temp);
         getchar();
@@ -571,8 +646,7 @@ void deleteBook(FILE *fp)
 
 void editBookHeader()
 {
-    CLEAR_SCREEN();
-    show_logo();
+    header();
     printf("Edit Book\n");
 }
 
@@ -585,6 +659,7 @@ void editBook(FILE *fp)
     {
         editBookHeader();
         getBooks(fp);
+        showBooks(fp);
         printf("Insert book id (Enter 0 to cancel): ");
         scanf("%[^\n]", temp);
         getchar();
@@ -670,12 +745,14 @@ void editBook(FILE *fp)
                 scanf("%d", &books[book_idx]->isBorrowed);
 
                 break;
+            case 5:
+                break;
             default:
                 printf("Invalid input. Try again.\n");
                 SLEEP(1000);
                 break;
             }
-        } while (menu != 4);
+        } while (menu != 5);
         resetFile("book.dat");
         for (int i = 0; i < 100 && books[i] != NULL; i++)
         {
@@ -695,14 +772,13 @@ void editBook(FILE *fp)
 void userHeader()
 {
     loadingAnimation();
-    CLEAR_SCREEN();
-    show_logo();
+    header();
 }
 
 void showAvailBooks(FILE *fpBook)
 {
     userHeader();
-    printf("\nShow Available Books\n");
+    printf("\nLibrary - Show Available Books\n");
     getBooks(fpBook);
     for (int i = 0, count = 1; i < 100 && books[i] != NULL; i++)
     {
@@ -718,94 +794,60 @@ void showAvailBooks(FILE *fpBook)
 
 void showBorrowedBooks(User *user)
 {
-    // Check if user pointer is valid
-    if (user == NULL)
-    {
-        printf("Invalid user.\n");
-        return;
-    }
-
-    // Check if books array is valid
-    if (user->books == NULL)
-    {
-        printf("No books array found.\n");
-        return;
-    }
-
     userHeader();
-    printf("\nShow Borrowed Books\n");
+    printf("\nLibrary - Show Borrowed Books\n");
 
-    // Loop through the books array
-    for (int i = 0; i < 3; i++)
+    int count = 1;
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
     {
-        // Check if the current book pointer is valid
-        if (user->books[i] != NULL)
+        if (strcmp(books[i]->borrowedBy, user->username) == 0)
         {
             printf("%d.\nId : %s\nTitle : %s\nAuthor : %s\nDescription : %s\n\n",
-                   i + 1,
-                   user->books[i]->id,
-                   user->books[i]->title,
-                   user->books[i]->author,
-                   user->books[i]->description);
-        }
-        else
-        {
-            printf("%d. [No Book Borrowed]\n\n", i + 1);
+                   count,
+                   books[i]->id,
+                   books[i]->title,
+                   books[i]->author,
+                   books[i]->description);
+            count++;
         }
     }
     printf("Press enter to continue\n");
     getchar();
 }
 
-void borrowBook(FILE *fpUser, FILE *fpBook, User *user) {
+void borrowBook(FILE *fpBook, User *user)
+{
     char bookId[7];
     int bookFound = 0;
 
-    // Display available books
+    userHeader();
     showAvailBooks(fpBook);
 
-    // Prompt user for book ID to borrow
-    userHeader();
+    printf("\nLibrary - Borrow Book\n");
     printf("Enter the Book ID to borrow (or 0 to cancel): ");
     scanf("%[^\n]", bookId);
-    getchar();  // To handle newline character after input
+    getchar();
+    getBooks(fpBook);
 
-    // If user enters "0", cancel the borrowing process
-    if (strcmp(bookId, "0") == 0) {
+    if (strcmp(bookId, "0") == 0)
+    {
         return;
     }
 
-    // Search for the book with the entered ID
-    for (int i = 0; i < 100 && books[i] != NULL; i++) {
-        if (strcmp(books[i]->id, bookId) == 0 && books[i]->isBorrowed == 0) {
-            // Book found and not borrowed yet
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        if (strcmp(books[i]->id, bookId) == 0 && books[i]->isBorrowed == 0)
+        {
             bookFound = 1;
 
-            // Mark the book as borrowed
             books[i]->isBorrowed = 1;
 
-            // Find the first available slot in the user's borrowed books array
-            for (int j = 0; j < 3; j++) {
-                if (user->books[j] == NULL) {
-                    user->books[j] = books[i];  // Assign the book to the user's borrowed books
-                    break;
-                }
-            }
+            strcpy(books[i]->borrowedBy, user->username);
 
-            // Update the file with the new state of the book (borrowed)
-            rewind(fpBook);
-            for (int i = 0; i < 100 && books[i] != NULL; i++) {
+            resetFile("book.dat");
+            for (int i = 0; i < 100 && books[i] != NULL; i++)
+            {
                 fwrite(books[i], sizeof(Book), 1, fpBook);
-            }
-
-            // Update the user's information in the file
-            rewind(fpUser);
-            fseek(fpUser, 0, SEEK_SET);
-            for (int i = 0; i < 100 && users[i] != NULL; i++) {
-                if (strcmp(users[i]->username, user->username) == 0) {
-                    fwrite(user, sizeof(User), 1, fpUser);
-                    break;
-                }
             }
 
             printf("Successfully borrowed the book with ID %s.\n", bookId);
@@ -813,7 +855,8 @@ void borrowBook(FILE *fpUser, FILE *fpBook, User *user) {
         }
     }
 
-    if (!bookFound) {
+    if (!bookFound)
+    {
         printf("The book is either unavailable or does not exist.\n");
     }
 
@@ -821,34 +864,65 @@ void borrowBook(FILE *fpUser, FILE *fpBook, User *user) {
     getchar();
 }
 
-
-
-void returnBook(FILE *fpUser, FILE *fpBook)
+void returnBook(FILE *fpBook, User *user)
 {
+    char bookId[7];
+    int bookFound = 0;
+    showBorrowedBooks(user);
+
+    printf("\nLibrary - Return Book\n");
+    printf("Enter the Book ID to return (or 0 to cancel): ");
+    scanf("%[^\n]", bookId);
+    getchar();
+    getBooks(fpBook);
+
+    if (strcmp(bookId, "0") == 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        if (strcmp(books[i]->id, bookId) == 0 && books[i]->isBorrowed == 1)
+        {
+            bookFound = 1;
+
+            books[i]->isBorrowed = 0;
+
+            strcpy(books[i]->borrowedBy, "-");
+
+            resetFile("book.dat");
+            for (int i = 0; i < 100 && books[i] != NULL; i++)
+            {
+                fwrite(books[i], sizeof(Book), 1, fpBook);
+            }
+
+            printf("Successfully returned the book with ID %s.\n", bookId);
+            break;
+        }
+    }
+
+    if (!bookFound)
+    {
+        printf("The book is either unavailable or does not exist.\n");
+    }
+
+    printf("Press Enter to continue.\n");
+    getchar();
 }
 
 // End of user section
 
-void runLibrary()
+void runLibrary(FILE *fp, FILE *fpBook, User *user)
 {
-    FILE *fp = fopen("user.dat", "ab+");
-    FILE *fpBook = fopen("book.dat", "ab+");
     getUsers(fp);
-    User *user = (User *)malloc(sizeof(User));
-    int exit = authentication(user, fp);
-
-    if (exit == 1)
-    {
-        free(user);
-        return;
-    }
     int menu = 0;
     if (user->isAdmin == 1)
     {
         do
         {
-            CLEAR_SCREEN();
-            show_logo();
+            getBooks(fpBook);
+            header();
             printUserInformation(user);
             printf("1. Create Book\n2. Show Books\n3. Delete Book\n4. Edit Book\n5. Show Users\n6. Exit\n");
             scanf("%d", &menu);
@@ -859,7 +933,7 @@ void runLibrary()
                 createBook(fpBook);
                 break;
             case 2:
-                showBooks(fpBook);
+                showBooksPage(fpBook);
                 break;
             case 3:
                 deleteBook(fpBook);
@@ -879,8 +953,8 @@ void runLibrary()
     {
         do
         {
-            CLEAR_SCREEN();
-            show_logo();
+            getBooks(fpBook);
+            header();
             printUserInformation(user);
             printf("1. Borrow Book\n2. Show Available Book\n3. Show Borrowed Book\n4. Return Book\n5. Exit\n");
             scanf("%d", &menu);
@@ -888,7 +962,7 @@ void runLibrary()
             switch (menu)
             {
             case 1:
-                borrowBook(fp, fpBook, user);
+                borrowBook(fpBook, user);
                 break;
             case 2:
                 showAvailBooks(fpBook);
@@ -897,7 +971,7 @@ void runLibrary()
                 showBorrowedBooks(user);
                 break;
             case 4:
-                returnBook(fp, fpBook);
+                returnBook(fpBook, user);
                 break;
             case 5:
                 break;
@@ -906,5 +980,4 @@ void runLibrary()
             }
         } while (menu != 5);
     }
-    free(user);
 }
