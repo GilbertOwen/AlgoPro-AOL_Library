@@ -13,11 +13,6 @@
 #define SLEEP(ms) usleep((ms) * 1000)
 #endif
 
-/*
-    TODO :
-    - Need to add sorting function to sort books by title, author, and borrowed status
-    - Need to add searching function to search for books by title, author, and borrowed status
-*/
 
 typedef struct
 {
