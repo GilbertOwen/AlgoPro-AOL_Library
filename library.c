@@ -188,10 +188,14 @@ int login(User *user, FILE *fp)
         printf("Username (0 to cancel): ");
         scanf("%[^\n]", username);
         getchar();
+        if (strcmp(username, "0") == 0)
+        {
+            return 0;
+        }
         printf("Password (0 to cancel): ");
         scanf("%[^\n]", password);
         getchar();
-        if (strcmp(username, "0") == 0 || strcmp(password, "0") == 0)
+        if (strcmp(password, "0") == 0)
         {
             return 0;
         }
@@ -327,6 +331,7 @@ int registerUser(User *user, FILE *fp)
             strcpy(user->password, temp);
         } while (validated == 0);
     } while (validated == 0);
+    user->isAdmin = 0;
 
     fwrite(user, sizeof(User), 1, fp);
     fflush(fp);
@@ -377,7 +382,6 @@ int authentication(User *user, FILE *fp)
 }
 
 // Admin section
-
 void resetFile(const char *filename)
 {
     FILE *fp = fopen(filename, "wb");
@@ -388,10 +392,101 @@ void resetFile(const char *filename)
     }
     fclose(fp);
 }
+
+void sortBooksByID(FILE *fp)
+{
+    // This function uses selection sort
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        for (int j = i + 1; j < 100 && books[j] != NULL; j++)
+        {
+            if (strcmp(books[i]->id, books[j]->id) > 0)
+            {
+                Book *temp = books[i];
+                books[i] = books[j];
+                books[j] = temp;
+            }
+        }
+    }
+    return;
+}
+
+void sortBooksByTitle(FILE *fp)
+{
+    // This function uses insertion sort
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        Book *key = books[i];
+        int j = i - 1;
+        while (j >= 0 && strcmp(books[j]->title, books[j + 1]->title) > 0)
+        {
+            books[j + 1] = books[j];
+            j--;
+        }
+        books[j + 1] = key;
+    }
+    return;
+}
+
+void sortBooksByIsBorrowed(FILE *fp)
+{
+    // This function uses bubble sort
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        for (int j = i + 1; j < 100 && books[j] != NULL; j++)
+        {
+            if (books[i]->isBorrowed > books[j]->isBorrowed)
+            {
+                Book *temp = books[i];
+                books[i] = books[j];
+                books[j] = temp;
+            }
+        }
+    }
+    return;
+}
+void sortBooksByAuthor(FILE *fp)
+{
+    // This function uses insertion sort
+    for (int i = 0; i < 100 && books[i] != NULL; i++)
+    {
+        Book *key = books[i];
+        int j = i - 1;
+        while (j >= 0 && strcmp(books[j]->author, books[j + 1]->author) > 0)
+        {
+            books[j + 1] = books[j];
+            j--;
+        }
+        books[j + 1] = key;
+    }
+    return;
+}
+
 void showBooks(FILE *fp)
 {
     printf("Books\n");
     getBooks(fp);
+    int menu;
+    printf("1. Sort by ID\n2. Sort by Title\n3. Sort by isBorrowed\n4. Sort by Author\n5. No sort\n");
+    scanf("%d", &menu);
+    getchar();
+    if (menu == 1)
+    {
+        sortBooksByID(fp);
+    }
+    else if (menu == 2)
+    {
+        sortBooksByTitle(fp);
+    }
+    else if (menu == 3)
+    {
+        sortBooksByIsBorrowed(fp);
+    }
+    else if (menu == 4)
+    {
+        sortBooksByAuthor(fp);
+    }
+    header();
     for (int i = 0; i < 100 && books[i] != NULL; i++)
     {
         printf("%d.\nId : %s\nTitle : %s\nAuthor : %s\nDescription : %s\nIs Borrowed : %d\n\n", i + 1, books[i]->id, books[i]->title, books[i]->author, books[i]->description, books[i]->isBorrowed);
