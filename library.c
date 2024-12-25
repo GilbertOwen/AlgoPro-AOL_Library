@@ -34,6 +34,7 @@ typedef struct
 User *users[100] = {NULL};
 Book *books[100] = {NULL};
 
+// Fungsi untuk menampilkan logo
 void show_logo()
 {
     const char *LOGO = "  _      _ _                             \n"
@@ -46,23 +47,28 @@ void show_logo()
     printf("%s\n", LOGO);
     puts("LIBRARY - A Place to Explore Knowledge\n");
 }
+
+// Fungsi untuk membersihkan layar
 void CLEAR_SCREEN()
 {
     printf("%s", CLEAR_REGEX);
 }
 
+// Fungsi untuk menampilkan header
 void header()
 {
     CLEAR_SCREEN();
     show_logo();
 }
 
+// Fungsi untuk animasi loading
 void loadingAnimation()
 {
     printf("Loading...\n");
     SLEEP(1000);
 };
 
+// Fungsi untuk membuka file
 FILE *openFile(const char *filename, const char *mode)
 {
     FILE *file = fopen(filename, mode);
@@ -78,28 +84,51 @@ FILE *openFile(const char *filename, const char *mode)
     return file;
 }
 
+// Fungsi untuk menampilkan daftar user
 void showUsers(FILE *fp);
+// Fungsi untuk membaca dan mengambil daftar user pada file
 void getUsers(FILE *fp);
+// Fungsi untuk login
 int login(User *user, FILE *fp);
+// Fungsi untuk menampilkan informasi user
 void printUserInformation(User *user);
+// Fungsi untuk registrasi
 int registerUser(User *user, FILE *fp);
+// Fungsi untuk menampilkan tampilan saat melakukan autentikasi
 int authentication(User *user, FILE *fp);
+// Fungsi untuk mereset file
 void resetFile(const char *filename);
+// Fungsi untuk menampilkan daftar buku
 void showBooks(FILE *fp);
+// Fungsi untuk menampilkan halaman daftar buku
 void showBooksPage(FILE *fp);
+// Fungsi untuk membaca dan mengambil daftar buku
 void getBooks(FILE *fp);
+// Fungsi untuk membuat id buku
 void createIdBook(FILE *fp, char *id);
+// Fungsi untuk menampilkan header buku saat tampilan membuat buku
 void createBookHeader();
+// Fungsi untuk membuat buku
 void createBook(FILE *fp);
+// Fungsi untuk menampilkan header buku saat tampilan menghapus buku
 void deleteBookHeader();
+// Fungsi untuk menghapus buku
 void deleteBook(FILE *fp);
+// Fungsi untuk menampilkan header buku saat tampilan mengedit buku
 void editBookHeader();
+// Fungsi untuk mengedit buku
 void editBook(FILE *fp);
+// Fungsi untuk menampilkan informasi soal user
 void userHeader();
+// Fungsi untuk menampilkan buku yang tersedia
 void showAvailBooks(FILE *fpBook);
+// Fungsi untuk menampilkan buku yang sudah dipinjam
 void showBorrowedBooks(User *user);
+// Fungsi untuk meminjam buku
 void borrowBook(FILE *fpBook, User *user);
+// Fungsi untuk mengembalikan buku
 void returnBook(FILE *fpBook, User *user);
+// Fungsi untuk menampilkan menu utama saat menjalankan library system
 void runLibrary(FILE *fp, FILE *fpBook, User *user);
 
 int main()
@@ -388,6 +417,9 @@ void resetFile(const char *filename)
     fclose(fp);
 }
 
+// Fungsi-fungsi untuk mengurutkan daftar buku
+
+// Fungsi untuk mengurutkan daftar buku berdasarkan ID
 void sortBooksByID(FILE *fp)
 {
     // This function uses selection sort
@@ -406,6 +438,7 @@ void sortBooksByID(FILE *fp)
     return;
 }
 
+// Fungsi untuk mengurutkan daftar buku berdasarkan judul
 void sortBooksByTitle(FILE *fp)
 {
     // This function uses insertion sort
@@ -423,6 +456,7 @@ void sortBooksByTitle(FILE *fp)
     return;
 }
 
+// Fungsi untuk mengurutkan daftar buku berdasarkan status peminjaman
 void sortBooksByIsBorrowed(FILE *fp)
 {
     // This function uses bubble sort
@@ -440,6 +474,8 @@ void sortBooksByIsBorrowed(FILE *fp)
     }
     return;
 }
+
+// Fungsi untuk mengurutkan daftar buku berdasarkan penulis
 void sortBooksByAuthor(FILE *fp)
 {
     // This function uses insertion sort
@@ -457,6 +493,7 @@ void sortBooksByAuthor(FILE *fp)
     return;
 }
 
+// Fungsi untuk menampilkan daftar buku
 void showBooks(FILE *fp)
 {
     printf("Books\n");
